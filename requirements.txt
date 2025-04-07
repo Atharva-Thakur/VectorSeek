@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-psycopg2-binary
-sqlalchemy
-pgvector
-numpy
-pandas
-sentence-transformers
-gdown
