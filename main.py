@@ -4,6 +4,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from psycopg2.extras import execute_values
 import psycopg2.extensions
+import time  # Import the time module for measuring execution time
 
 # Load data and embeddings
 df = pd.read_csv("data/data.csv")
@@ -19,12 +20,16 @@ port = 5432
 # Connect to the PostgreSQL database
 def create_db_connection():
     try:
+        start_time = time.time()  # Start time measurement
+        print("Connecting to the PostgreSQL database...")
         conn = psycopg2.connect(
             host=host,
             user=user,
             password=password,
             port=port
         )
+        end_time = time.time()  # End time measurement
+        print(f"Database connection successful. Time taken: {end_time - start_time:.2f} seconds.")
         return conn
     except Exception as e:
         print(f"Error while connecting to database: {e}")
@@ -33,9 +38,12 @@ def create_db_connection():
 # Create the embeddings table if it doesn't exist
 def create_table(conn):
     try:
+        start_time = time.time()  # Start time measurement
+        print("Creating the embeddings table if it doesn't exist...")
         with conn.cursor() as cur:
             # Install the pgvector extension
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            print("pgvector extension checked/installed.")
             
             # Create the table with the proper structure
             table_create_command = """
@@ -49,7 +57,8 @@ def create_table(conn):
             """
             cur.execute(table_create_command)
             conn.commit()
-            print("Table created successfully.")
+            end_time = time.time()  # End time measurement
+            print(f"Table created successfully. Time taken: {end_time - start_time:.2f} seconds.")
     except Exception as e:
         print(f"Error creating table: {e}")
         conn.rollback()
@@ -57,6 +66,8 @@ def create_table(conn):
 # Insert embeddings and metadata from DataFrame into PostgreSQL in batch
 def insert_embeddings(conn, df):
     try:
+        start_time = time.time()  # Start time measurement
+        print(f"Inserting {len(df)} embeddings into the database...")
         with conn.cursor() as cur:
             # Prepare data for insertion (embedding is converted to list)
             data_list = [(row['title'], row['author'], row['description'], np.array(row['embeddings']).tolist()) 
@@ -67,7 +78,8 @@ def insert_embeddings(conn, df):
             """
             execute_values(cur, insert_command, data_list)
             conn.commit()
-            print("Embeddings inserted successfully!")
+            end_time = time.time()  # End time measurement
+            print(f"{len(df)} embeddings inserted successfully! Time taken: {end_time - start_time:.2f} seconds.")
     except Exception as e:
         print(f"Error inserting embeddings: {e}")
         conn.rollback()
@@ -75,22 +87,28 @@ def insert_embeddings(conn, df):
 # Perform a vector search for a query
 def perform_vector_search(conn, query, model):
     try:
+        start_time = time.time()  # Start time measurement
+        print(f"Generating embedding for the query: '{query}'")
         # Generate query embedding using the sentence-transformer model
         query_embedding = model.encode([query])[0]  # single query, so extract the first item
-
+        
+        print("Performing vector search for the most similar documents...")
         with conn.cursor() as cur:
             # Perform a vector search on the embeddings table
             search_query = """
             SELECT title, author, content, embedding, 
-                   embedding <=> %s AS similarity
+                   embedding <=> %s::vector AS similarity
             FROM embeddings
             ORDER BY similarity
             LIMIT 5;
             """
-            cur.execute(search_query, (query_embedding.tolist(),))  # execute query with embedding
+            # Pass the query embedding as a list, and cast it to the 'vector' type in SQL
+            cur.execute(search_query, (query_embedding.tolist(),))  # Pass the list directly
             results = cur.fetchall()
 
             # Output results
+            end_time = time.time()  # End time measurement
+            print(f"Vector search completed. Time taken: {end_time - start_time:.2f} seconds.")
             print("Top 5 most similar documents:")
             for result in results:
                 print(f"Title: {result[0]}, Author: {result[1]}")
@@ -101,6 +119,7 @@ def perform_vector_search(conn, query, model):
 
 def main():
     # Load sentence transformer model
+    print("Loading the Sentence Transformer model...")
     model = SentenceTransformer('all-MiniLM-L6-v2')
 
     # Step 1: Connect to the database
@@ -109,16 +128,20 @@ def main():
         return
 
     # Step 2: Create the table if it doesn't exist
-    create_table(conn)
+    print("Creating table...")
+    create_table(conn) 
 
     # Step 3: Insert embeddings into the table
-    insert_embeddings(conn, df)
+    print("Inserting embeddings into the table...")
+    insert_embeddings(conn, df) 
 
     # Step 4: Perform vector search for a sample query
     query = "What is machine learning?"
+    print(f"Performing vector search with query: '{query}'")
     perform_vector_search(conn, query, model)
 
     # Close the connection
+    print("Closing the database connection.")
     conn.close()
 
 if __name__ == "__main__":
