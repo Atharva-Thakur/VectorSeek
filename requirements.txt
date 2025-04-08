@@ -1,10 +1,5 @@
-fastapi
-uvicorn
-sqlalchemy
-psycopg2-binary
-python-dotenv
+pandas 
+numpy 
+psycopg2-binary 
+pgvector 
 sentence-transformers
-pandas
-numpy
-pgvector
-transformers

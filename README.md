@@ -1,3 +1,6 @@
 # VectorSeek
 
-gdown "https://drive.google.com/uc?export=download&id=1FM9NToaAntQy5A3YgBS1yfJlBlY-HbLK"
+## Setup a postgresDB using docker
+- `docker run --name postgres-container -p 5432:5432 -e POSTGRES_PASSWORD=yourPassword -d postgres`
+- `docker exec -it postgres-container bash`
+- `psql -h localhost -p 5432 -U postgres`
