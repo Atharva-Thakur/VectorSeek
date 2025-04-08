@@ -146,6 +146,58 @@ def perform_vector_search(conn, query, model):
     except Exception as e:
         print(f"Error during vector search: {e}")
 
+def test_vector_search_with_filters(conn, model, query, author_filter=None, title_keyword=None, min_content_length=None):
+    try:
+        print(f"\nTesting filtered vector search for query: '{query}'")
+        query_embedding = model.encode([query])[0]
+
+        base_query = """
+        SELECT title, author, content, embedding, 
+               embedding <=> %s::vector AS similarity
+        FROM embeddings
+        WHERE 1=1
+        """
+        params = [query_embedding.tolist()]
+
+        # Add filters dynamically
+        if author_filter:
+            base_query += " AND author ILIKE %s"
+            params.append(f"%{author_filter}%")
+        if title_keyword:
+            base_query += " AND title ILIKE %s"
+            params.append(f"%{title_keyword}%")
+        if min_content_length:
+            base_query += " AND length(content) >= %s"
+            params.append(min_content_length)
+
+        # Append ordering and limit
+        base_query += " ORDER BY similarity LIMIT 5;"
+
+        with conn.cursor() as cur:
+            cur.execute(base_query, tuple(params))
+            results = cur.fetchall()
+            print(f"Found {len(results)} results with filters:")
+            for result in results:
+                print(f"Title: {result[0]}, Author: {result[1]}, Similarity: {result[4]:.4f}")
+                print("------")
+
+    except Exception as e:
+        print(f"Error during filtered vector search: {e}")
+
+def run_tests():
+    print("Running test cases...")
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    conn = create_db_connection()
+    if conn is None:
+        return
+
+    test_vector_search_with_filters(conn, model, query="neural networks")
+    test_vector_search_with_filters(conn, model, query="artificial intelligence", author_filter="John")
+    test_vector_search_with_filters(conn, model, query="data mining", title_keyword="mining")
+    test_vector_search_with_filters(conn, model, query="deep learning", min_content_length=500)
+
+    conn.close()
+
 def main():
     # Load sentence transformer model
     print("Loading the Sentence Transformer model...")
@@ -165,9 +217,11 @@ def main():
     # insert_embeddings(conn, df) 
 
     # Step 4: Perform vector search for a sample query
-    query = "Machine learning"
-    print(f"Performing vector search with query: '{query}'")
-    perform_vector_search(conn, query, model)
+    # query = "Machine learning"
+    # print(f"Performing vector search with query: '{query}'")
+    # perform_vector_search(conn, query, model)
+
+    run_tests()
 
     # Close the connection
     print("Closing the database connection.")
