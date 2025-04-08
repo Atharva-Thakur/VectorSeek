@@ -1,71 +1,125 @@
 import psycopg2
-import pandas
-import numpy
-import sentence_transformers
+import pandas as pd
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from psycopg2.extras import execute_values
+import psycopg2.extensions
 
-df = pd.read_csv("/content/drive/MyDrive/Artifacts/vector_forge_artifacts/data.csv")
-
-embeddings = np.load("/content/drive/MyDrive/Artifacts/vector_forge_artifacts/embeddings.npy")
-
+# Load data and embeddings
+df = pd.read_csv("data/data.csv")
+embeddings = np.load("data/embeddings.npy")
 df['embeddings'] = list(embeddings)
 
-# Define your database connection parameters
+# Database connection parameters
 host = "localhost"
 user = "postgres"
 password = "password"
 port = 5432
 
-# Establish a connection
-conn = psycopg2.connect(
-    host=host,
-    user=user,
-    password=password,
-    port=port
-)
+# Connect to the PostgreSQL database
+def create_db_connection():
+    try:
+        conn = psycopg2.connect(
+            host=host,
+            user=user,
+            password=password,
+            port=port
+        )
+        return conn
+    except Exception as e:
+        print(f"Error while connecting to database: {e}")
+        return None
 
-cur = conn.cursor()
-
-#install pgvector
-cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-conn.commit()
-
-#install pgvectorscale
-cur.execute("CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;")
-conn.commit()
-
-# Register the vector type with psycopg2
-register_vector(conn)
-
-table_create_command = """
-CREATE TABLE embeddings (
-            id bigserial primary key, 
-            title text,
-            author text,
-            content text,
-            embedding vector(1536)
+# Create the embeddings table if it doesn't exist
+def create_table(conn):
+    try:
+        with conn.cursor() as cur:
+            # Install the pgvector extension
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            
+            # Create the table with the proper structure
+            table_create_command = """
+            CREATE TABLE IF NOT EXISTS embeddings (
+                id bigserial primary key, 
+                title text,
+                author text,
+                content text,
+                embedding vector(384)
             );
             """
+            cur.execute(table_create_command)
+            conn.commit()
+            print("Table created successfully.")
+    except Exception as e:
+        print(f"Error creating table: {e}")
+        conn.rollback()
 
-cur.execute(table_create_command)
-cur.close()
-conn.commit()
+# Insert embeddings and metadata from DataFrame into PostgreSQL in batch
+def insert_embeddings(conn, df):
+    try:
+        with conn.cursor() as cur:
+            # Prepare data for insertion (embedding is converted to list)
+            data_list = [(row['title'], row['author'], row['description'], np.array(row['embeddings']).tolist()) 
+                         for _, row in df.iterrows()]
+            insert_command = """
+            INSERT INTO embeddings (title, author, content, embedding) 
+            VALUES %s
+            """
+            execute_values(cur, insert_command, data_list)
+            conn.commit()
+            print("Embeddings inserted successfully!")
+    except Exception as e:
+        print(f"Error inserting embeddings: {e}")
+        conn.rollback()
 
-#Batch insert embeddings and metadata from dataframe into PostgreSQL database
-register_vector(conn)
-cur = conn.cursor()
-# Prepare the list of tuples to insert
-data_list = [(row['title'], row['author'], row['content'], np.array(row['embeddings'])) for index, row in df.iterrows()]
-# Use execute_values to perform batch insertion
-execute_values(cur, "INSERT INTO embeddings (title, url, content, tokens, embedding) VALUES %s", data_list)
-# Commit after we insert all embeddings
-conn.commit()
+# Perform a vector search for a query
+def perform_vector_search(conn, query, model):
+    try:
+        # Generate query embedding using the sentence-transformer model
+        query_embedding = model.encode([query])[0]  # single query, so extract the first item
 
-cur.execute("SELECT COUNT(*) as cnt FROM embeddings;")
-num_records = cur.fetchone()[0]
-print("Number of vector records in table: ", num_records,"\n")
+        with conn.cursor() as cur:
+            # Perform a vector search on the embeddings table
+            search_query = """
+            SELECT title, author, content, embedding, 
+                   embedding <=> %s AS similarity
+            FROM embeddings
+            ORDER BY similarity
+            LIMIT 5;
+            """
+            cur.execute(search_query, (query_embedding.tolist(),))  # execute query with embedding
+            results = cur.fetchall()
 
-cur.execute("SELECT * FROM embeddings LIMIT 1;")
-records = cur.fetchall()
-print("First record in table: ", records)
+            # Output results
+            print("Top 5 most similar documents:")
+            for result in results:
+                print(f"Title: {result[0]}, Author: {result[1]}")
+                print(f"Similarity Score: {result[4]}")
+                print(f"Content: {result[2]}\n")
+    except Exception as e:
+        print(f"Error during vector search: {e}")
 
-conn.close()
+def main():
+    # Load sentence transformer model
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+
+    # Step 1: Connect to the database
+    conn = create_db_connection()
+    if conn is None:
+        return
+
+    # Step 2: Create the table if it doesn't exist
+    create_table(conn)
+
+    # Step 3: Insert embeddings into the table
+    insert_embeddings(conn, df)
+
+    # Step 4: Perform vector search for a sample query
+    query = "What is machine learning?"
+    perform_vector_search(conn, query, model)
+
+    # Close the connection
+    conn.close()
+
+if __name__ == "__main__":
+    main()
