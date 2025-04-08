@@ -71,24 +71,42 @@ def create_table(conn):
         conn.rollback()
 
 # Insert embeddings and metadata from DataFrame into PostgreSQL in batch
-def insert_embeddings(conn, df):
+def insert_embeddings(conn, df, batch_size=10000):
     try:
-        start_time = time.time()  # Start time measurement
-        print(f"Inserting {len(df)} embeddings into the database...")
+        total_rows = len(df)
+        print(f"Inserting {total_rows} embeddings into the database in batches of {batch_size}...")
+
+        start_time = time.time()
+        inserted = 0
+
         with conn.cursor() as cur:
-            # Prepare data for insertion (embedding is converted to list)
-            data_list = [(row['title'], row['author'], row['description'], np.array(row['embeddings']).tolist()) 
-                         for _, row in df.iterrows()]
-            insert_command = """
-            INSERT INTO embeddings (title, author, content, embedding) 
-            VALUES %s
-            """
-            execute_values(cur, insert_command, data_list)
-            conn.commit()
-            end_time = time.time()  # End time measurement
-            print(f"{len(df)} embeddings inserted successfully! Time taken: {end_time - start_time:.2f} seconds.")
+            for i in range(0, total_rows, batch_size):
+                batch = df.iloc[i:i+batch_size]
+
+                # Prepare data for insertion
+                data_list = [
+                    (row['title'], row['author'], row['description'], np.array(row['embeddings']).tolist()) 
+                    for _, row in batch.iterrows()
+                ]
+
+                insert_command = """
+                INSERT INTO embeddings (title, author, content, embedding) 
+                VALUES %s
+                """
+                try:
+                    execute_values(cur, insert_command, data_list)
+                    conn.commit()
+                    inserted += len(data_list)
+                    print(f"✅ Inserted batch {i // batch_size + 1}: {len(data_list)} rows (Total so far: {inserted})")
+                except Exception as batch_e:
+                    print(f"⚠️ Error inserting batch {i // batch_size + 1}: {batch_e}")
+                    conn.rollback()
+
+        end_time = time.time()
+        print(f"Finished inserting embeddings. Total inserted: {inserted}/{total_rows}. Time taken: {end_time - start_time:.2f} seconds.")
+
     except Exception as e:
-        print(f"Error inserting embeddings: {e}")
+        print(f"Fatal error during embedding insertion: {e}")
         conn.rollback()
 
 # Perform a vector search for a query
@@ -139,15 +157,15 @@ def main():
         return
 
     # Step 2: Create the table and the index if they don't exist
-    print("Creating table and index...")
-    create_table(conn) 
+    # print("Creating table and index...")
+    # create_table(conn) 
 
-    # # Step 3: Insert embeddings into the table
-    print("Inserting embeddings into the table...")
-    insert_embeddings(conn, df) 
+    # # # Step 3: Insert embeddings into the table
+    # print("Inserting embeddings into the table...")
+    # insert_embeddings(conn, df) 
 
     # Step 4: Perform vector search for a sample query
-    query = "Machine Quilting Made Easy!: Perpetual Calendar"
+    query = "Machine learning"
     print(f"Performing vector search with query: '{query}'")
     perform_vector_search(conn, query, model)
 
