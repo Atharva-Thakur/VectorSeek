@@ -7,8 +7,8 @@ import psycopg2.extensions
 import time  # Import the time module for measuring execution time
 
 # Load data and embeddings
-df = pd.read_csv("data/data.csv")
-embeddings = np.load("data/embeddings.npy")
+df = pd.read_csv("data/data1000000/data.csv")
+embeddings = np.load("data/data1000000/embeddings.npy")
 df['embeddings'] = list(embeddings)
 
 # Database connection parameters
@@ -20,7 +20,6 @@ port = 5432
 # Connect to the PostgreSQL database
 def create_db_connection():
     try:
-        start_time = time.time()  # Start time measurement
         print("Connecting to the PostgreSQL database...")
         conn = psycopg2.connect(
             host=host,
@@ -28,8 +27,7 @@ def create_db_connection():
             password=password,
             port=port
         )
-        end_time = time.time()  # End time measurement
-        print(f"Database connection successful. Time taken: {end_time - start_time:.2f} seconds.")
+        print(f"Database connection successful.")
         return conn
     except Exception as e:
         print(f"Error while connecting to database: {e}")
@@ -57,8 +55,17 @@ def create_table(conn):
             """
             cur.execute(table_create_command)
             conn.commit()
+            print("Table created successfully.")
+            
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS embeddings_vector_idx 
+                ON embeddings USING hnsw (embedding vector_l2_ops);
+            """)
+            conn.commit()
+            print("HNSW index created successfully.")
+            
             end_time = time.time()  # End time measurement
-            print(f"Table created successfully. Time taken: {end_time - start_time:.2f} seconds.")
+            print(f"Table and index creation completed. Time taken: {end_time - start_time:.2f} seconds.")
     except Exception as e:
         print(f"Error creating table: {e}")
         conn.rollback()
@@ -87,11 +94,14 @@ def insert_embeddings(conn, df):
 # Perform a vector search for a query
 def perform_vector_search(conn, query, model):
     try:
-        start_time = time.time()  # Start time measurement
+        start_time = time.time()
         print(f"Generating embedding for the query: '{query}'")
         # Generate query embedding using the sentence-transformer model
         query_embedding = model.encode([query])[0]  # single query, so extract the first item
-        
+        end_time = time.time()  # End time measurement
+        print(f"Generating embedding completed. Time taken: {end_time - start_time:.2f} seconds.")
+
+        start_time = time.time()  # Start time measurement
         print("Performing vector search for the most similar documents...")
         with conn.cursor() as cur:
             # Perform a vector search on the embeddings table
@@ -113,7 +123,8 @@ def perform_vector_search(conn, query, model):
             for result in results:
                 print(f"Title: {result[0]}, Author: {result[1]}")
                 print(f"Similarity Score: {result[4]}")
-                print(f"Content: {result[2]}\n")
+                # print(f"Content: {result[2]}\n")
+                print("------")
     except Exception as e:
         print(f"Error during vector search: {e}")
 
@@ -127,16 +138,16 @@ def main():
     if conn is None:
         return
 
-    # Step 2: Create the table if it doesn't exist
-    print("Creating table...")
+    # Step 2: Create the table and the index if they don't exist
+    print("Creating table and index...")
     create_table(conn) 
 
-    # Step 3: Insert embeddings into the table
+    # # Step 3: Insert embeddings into the table
     print("Inserting embeddings into the table...")
     insert_embeddings(conn, df) 
 
     # Step 4: Perform vector search for a sample query
-    query = "What is machine learning?"
+    query = "Machine Quilting Made Easy!: Perpetual Calendar"
     print(f"Performing vector search with query: '{query}'")
     perform_vector_search(conn, query, model)
 
