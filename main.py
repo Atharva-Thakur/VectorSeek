@@ -209,17 +209,17 @@ def main():
         return
 
     # Step 2: Create the table and the index if they don't exist
-    # print("Creating table and index...")
-    # create_table(conn) 
+    print("Creating table and index...")
+    create_table(conn) 
 
     # # # Step 3: Insert embeddings into the table
-    # print("Inserting embeddings into the table...")
-    # insert_embeddings(conn, df) 
+    print("Inserting embeddings into the table...")
+    insert_embeddings(conn, df) 
 
     # Step 4: Perform vector search for a sample query
-    # query = "Machine learning"
-    # print(f"Performing vector search with query: '{query}'")
-    # perform_vector_search(conn, query, model)
+    query = "Machine learning"
+    print(f"Performing vector search with query: '{query}'")
+    perform_vector_search(conn, query, model)
 
     run_tests()
 
