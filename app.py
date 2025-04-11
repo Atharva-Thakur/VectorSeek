@@ -20,10 +20,10 @@ def main():
     if conn is None:
         return
 
-    # create_table(conn)
+    create_table(conn)
 
-    # df = load_data_and_embeddings()
-    # insert_embeddings(conn, df)
+    df = load_data_and_embeddings()
+    insert_embeddings(conn, df)
 
     perform_vector_search(conn, "Machine learning", model)
     # run_tests(conn, model)

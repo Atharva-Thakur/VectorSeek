@@ -13,7 +13,7 @@ def insert_embeddings(conn, df, batch_size=10000):
             for i in range(0, total_rows, batch_size):
                 batch = df.iloc[i:i+batch_size]
                 data_list = [
-                    (row['title'], row['author'], row['description'], list(row['embeddings']))
+                    (row['title'], row['author'], row['description'], np.array(row['embeddings']).tolist())
                     for _, row in batch.iterrows()
                 ]
 

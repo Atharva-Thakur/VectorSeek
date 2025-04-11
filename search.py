@@ -15,7 +15,7 @@ def perform_vector_search(conn, query, model):
         with conn.cursor() as cur:
             # Perform a vector search on the embeddings table
             search_query = """
-            SELECT title, author, content, embedding, 
+            SELECT title, author, content, 
                    embedding <=> %s::vector AS similarity
             FROM embeddings
             ORDER BY similarity
@@ -31,7 +31,7 @@ def perform_vector_search(conn, query, model):
             print("Top 5 most similar documents:")
             for result in results:
                 print(f"Title: {result[0]}, Author: {result[1]}")
-                print(f"Similarity Score: {result[4]}")
+                print(f"Similarity Score: {result[3]}")
                 # print(f"Content: {result[2]}\n")
                 print("------")
     except Exception as e:

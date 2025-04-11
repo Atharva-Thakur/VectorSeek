@@ -26,10 +26,18 @@ def create_table(conn):
                     embedding vector(384)
                 );
             """)
+            # Drop the existing index if it exists (optional safety step)
+            cur.execute("""
+                DROP INDEX IF EXISTS embeddings_vector_idx;
+            """)
+            # Create HNSW index with tuned parameters
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS embeddings_vector_idx 
-                ON embeddings USING hnsw (embedding vector_l2_ops);
+                ON embeddings USING hnsw (embedding vector_l2_ops)
+                WITH (m = 16, ef_construction = 200);
             """)
+            # Analyze for planner statistics (not strictly necessary for HNSW)
+            cur.execute("ANALYZE embeddings;")
             conn.commit()
             print(f"Table and index created in {time.time() - start_time:.2f} seconds.")
     except Exception as e:
