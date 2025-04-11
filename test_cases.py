@@ -1,3 +1,5 @@
+
+
 def test_vector_search_with_filters(conn, model, query, author_filter=None, title_keyword=None, min_content_length=None):
     try:
         print(f"\nRunning filtered search for: '{query}'")
@@ -22,10 +24,14 @@ def test_vector_search_with_filters(conn, model, query, author_filter=None, titl
         query_sql += " ORDER BY similarity LIMIT 5;"
 
         with conn.cursor() as cur:
+            start_time = time.time()
             cur.execute(query_sql, tuple(params))
             results = cur.fetchall()
             for result in results:
                 print(f"Title: {result[0]}, Author: {result[1]}, Similarity: {result[4]:.4f}")
                 print("------")
+            end_time = time.time()
+            print(f"Test completed. Time taken: {end_time - start_time:.2f} seconds.")
+
     except Exception as e:
         print(f"Error in filtered search: {e}")

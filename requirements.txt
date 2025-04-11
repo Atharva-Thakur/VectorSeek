@@ -3,3 +3,5 @@ numpy
 psycopg2-binary 
 pgvector 
 sentence-transformers
+fastapi
+uvicorn
