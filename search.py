@@ -62,3 +62,19 @@ def perform_vector_search(conn, query, model, author_filter=None, title_keyword=
     except Exception as e:
         print(f"Error during vector search: {e}")
         return []
+
+def get_books_by_title(conn, title: str):
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, title, author, content 
+            FROM embeddings 
+            WHERE title ILIKE %s 
+            LIMIT 20;
+        """, (f"%{title}%",))
+        rows = cursor.fetchall()
+        return [{"id": row[0], "title": row[1], "author": row[2], "content": row[3]} for row in rows]
+        
+    except Exception as e:
+        print(f"Error during title search: {e}")
+        return []
