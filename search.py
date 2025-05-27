@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-def perform_vector_search(conn, query, model, author_filter=None, title_keyword=None, min_content_length=None, top_k=5):
+def perform_vector_search(conn, model, query, author_filter=None, title_keyword=None, min_content_length=None, top_k=5):
     try:
         cursor = conn.cursor()
 
@@ -21,6 +21,9 @@ def perform_vector_search(conn, query, model, author_filter=None, title_keyword=
         if title_keyword:
             filters.append("title ILIKE %s")
             params.append(f"%{title_keyword}%")
+        # if year:
+        #     filters.append("year ILIKE %s")
+        #     params.append(f"%{year}%")
         if min_content_length:
             filters.append("char_length(content) >= %s")
             params.append(min_content_length)

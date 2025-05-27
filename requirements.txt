@@ -5,3 +5,4 @@ pgvector
 sentence-transformers
 fastapi
 uvicorn
+gdown
