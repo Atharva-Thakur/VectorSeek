@@ -30,11 +30,11 @@ def create_table(conn):
             cur.execute("""
                 DROP INDEX IF EXISTS embeddings_vector_idx;
             """)
-            # Create HNSW index with tuned parameters
+            # Create IVF index with tuned parameters
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS embeddings_vector_idx 
-                ON embeddings USING hnsw (embedding vector_l2_ops)
-                WITH (m = 16, ef_construction = 200);
+                ON embeddings USING ivfflat (embedding vector_l2_ops)
+                WITH (lists = 100);
             """)
             # Analyze for planner statistics (not strictly necessary for HNSW)
             cur.execute("ANALYZE embeddings;")

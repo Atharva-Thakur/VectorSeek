@@ -35,3 +35,15 @@ def insert_embeddings(conn, df, batch_size=10000):
     except Exception as e:
         print(f"Fatal error during insertion: {e}")
         conn.rollback()
+
+
+def vacuum_embeddings(conn):
+    # Save current autocommit state
+    old_autocommit = conn.autocommit
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("VACUUM embeddings;")
+            print("✅ VACUUM completed: IVF index is now up-to-date.")
+    finally:
+        conn.autocommit = old_autocommit  # Restore previous state
