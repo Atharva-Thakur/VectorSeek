@@ -6,10 +6,10 @@ from search import perform_vector_search
 from config import MODEL_NAME
 
 def run_tests(conn, model):
-    perform_vector_search(conn, model, "neural networks", author_filter="John", title_keyword="network", min_content_length=500)
-    perform_vector_search(conn, model, "artificial intelligence")
-    perform_vector_search(conn, model, "data mining")
-    perform_vector_search(conn, model, "deep learning")
+    # perform_vector_search(conn, model, "neural networks", author_filter="John", title_keyword="network", min_content_length=500)
+    perform_vector_search(conn, model, "neural network", title_keyword='intelligence')
+    # perform_vector_search(conn, model, "data mining", title_keyword='Data Mining')
+    # perform_vector_search(conn, model, "deep learning")
 
 def main():
     print("Loading model...")
