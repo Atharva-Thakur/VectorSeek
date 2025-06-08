@@ -4,8 +4,8 @@
 - `docker run --name postgres-container -p 5432:5432 -e POSTGRES_PASSWORD=password -d ankane/pgvector`
 
 - `docker run --name postgres-container \
-  --shm-size=1g \
-  --memory=4g \
+  --shm-size=2g \
+  --memory=8g \
   -p 5432:5432 \
   -e POSTGRES_PASSWORD=password \
   -v pgdata:/var/lib/postgresql/data \
